@@ -18,7 +18,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 app = FastAPI()
 
-# Allow WordPress frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://doc.carecast.ai"],
@@ -50,19 +49,24 @@ async def generate_3d(xrays: List[UploadFile] = File(...)):
                 shutil.copyfileobj(file.file, f)
             filepaths.append(save_path)
 
+        print("📦 Loading model...")
         midas, transform = load_midas_model()
+        print("✅ Model loaded.")
+
         depth_maps = [predict_depth(fp, midas, transform) for fp in filepaths]
 
         model_id = str(uuid.uuid4())
         output_path = os.path.join(OUTPUT_DIR, f"{model_id}.glb")
         merge_and_save_point_clouds(depth_maps, output_path)
 
+        print("✅ 3D model saved.")
         return JSONResponse({
             "message": "3D model generated.",
             "model_url": f"/static/models/{model_id}.glb"
         })
 
     except Exception as e:
+        print("🔥 CRASHED DURING /generate-3d/")
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 
